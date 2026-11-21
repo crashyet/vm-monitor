@@ -76,12 +76,16 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="font-semibold text-sm text-white tracking-tight">{node.name}</h3>
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#242a36] text-[#8e98a8] border border-[#2e3646]">
-                  {node.group_name || 'Default'}
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                  node.is_host 
+                    ? 'bg-cyan-950/80 text-cyan-300 border-cyan-800/60 font-semibold' 
+                    : 'bg-[#242a36] text-[#8e98a8] border-[#2e3646]'
+                }`}>
+                  {node.is_host ? '⚡ HOST SERVER' : (node.group_name || 'Default')}
                 </span>
               </div>
               <p className="text-xs text-[#717d91] font-mono mt-0.5">
-                {node.username}@{node.host}:{node.port}
+                {node.is_host ? 'Localhost (Native PTY & /proc)' : `${node.username}@${node.host}:${node.port}`}
               </p>
             </div>
           </div>
@@ -119,27 +123,31 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                     <Play className="w-3.5 h-3.5 text-amber-400" />
                     <span>Run Snippet</span>
                   </button>
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenEdit(node);
-                    }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[#282f3d] flex items-center space-x-2"
-                  >
-                    <Edit2 className="w-3.5 h-3.5 text-[#ff8c33]" />
-                    <span>Edit Configuration</span>
-                  </button>
-                  <div className="my-1 border-t border-[#2a3240]" />
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDelete(node);
-                    }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-rose-950/60 text-rose-400 flex items-center space-x-2"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Node</span>
-                  </button>
+                  {!node.is_host && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onOpenEdit(node);
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-[#282f3d] flex items-center space-x-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-[#ff8c33]" />
+                        <span>Edit Configuration</span>
+                      </button>
+                      <div className="my-1 border-t border-[#2a3240]" />
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onDelete(node);
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-rose-950/60 text-rose-400 flex items-center space-x-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Node</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -247,25 +255,27 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           className="flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-3 bg-[#202632] hover:bg-[#28303f] text-[#ff8c33] font-medium text-xs rounded border border-[#2e3748] transition-colors shadow-sm"
         >
           <Terminal className="w-3.5 h-3.5" />
-          <span>Console</span>
+          <span>{node.is_host ? '⚡ Host Shell' : 'Console'}</span>
         </button>
 
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={() => onOpenPower(node, 'reboot')}
-            title="Reboot VM"
-            className="p-1.5 text-amber-400 hover:bg-amber-950/40 hover:text-amber-300 rounded border border-[#272d3a] transition-colors"
-          >
-            <Power className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onOpenPower(node, 'shutdown')}
-            title="Shutdown VM"
-            className="p-1.5 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded border border-[#272d3a] transition-colors"
-          >
-            <Power className="w-3.5 h-3.5 rotate-90" />
-          </button>
-        </div>
+        {!node.is_host && (
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => onOpenPower(node, 'reboot')}
+              title="Reboot VM"
+              className="p-1.5 text-amber-400 hover:bg-amber-950/40 hover:text-amber-300 rounded border border-[#272d3a] transition-colors"
+            >
+              <Power className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onOpenPower(node, 'shutdown')}
+              title="Shutdown VM"
+              className="p-1.5 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 rounded border border-[#272d3a] transition-colors"
+            >
+              <Power className="w-3.5 h-3.5 rotate-90" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

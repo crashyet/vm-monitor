@@ -30,6 +30,7 @@ export interface NodeItem {
   auth_type: 'password' | 'key';
   created_at: string;
   updated_at: string;
+  is_host?: boolean;
   metrics?: NodeMetrics;
 }
 

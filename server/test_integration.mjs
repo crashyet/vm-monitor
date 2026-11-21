@@ -4,8 +4,13 @@ import { encrypt, decrypt } from './dist/services/crypto.js';
 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const testDataDir = path.join(__dirname, 'test_data');
+if (fs.existsSync(testDataDir)) {
+  fs.rmSync(testDataDir, { recursive: true, force: true });
+}
 
 console.log('--- 1. Testing AES-256-GCM Encryption / Decryption ---');
 const secret = 'my-super-secret-ssh-private-key-12345';
@@ -100,10 +105,11 @@ async function runTests() {
   const listNodesRes = await fetch(`${BASE}/api/nodes`, {
     headers: { Authorization: `Bearer ${token}` },
   }).then((r) => r.json());
-  assert(Array.isArray(listNodesRes) && listNodesRes.length === 1);
-  assert.strictEqual(listNodesRes[0].name, 'test-lab-vm');
-  assert(!('encrypted_credential' in listNodesRes[0]), 'encrypted_credential must not be exposed to client');
-  console.log('✅ Nodes list verified (credentials protected)');
+  assert(Array.isArray(listNodesRes) && listNodesRes.length >= 1);
+  const foundNode = listNodesRes.find((n) => n.id === addNodeRes.id);
+  assert(foundNode && foundNode.name === 'test-lab-vm');
+  assert(!('encrypted_credential' in foundNode), 'encrypted_credential must not be exposed to client');
+  console.log(`✅ Nodes list verified (${listNodesRes.length} nodes including Host & VM, credentials protected)`);
 
   console.log('Testing GET /api/snippets...');
   const snippetsRes = await fetch(`${BASE}/api/snippets`, {

@@ -1,6 +1,7 @@
 import { db } from '../config/db.js';
 import { decrypt } from './crypto.js';
 import { executeSSHCommand, NodeMetrics, SSHNodeConfig } from './ssh.js';
+import { getLocalHostMetrics } from './localHost.js';
 
 interface RawNodeRecord {
   id: string;
@@ -34,6 +35,9 @@ export function getAllCachedMetrics(): NodeMetrics[] {
 }
 
 export function getNodeCachedMetrics(nodeId: string): NodeMetrics | undefined {
+  if (nodeId === '__host__') {
+    return getLocalHostMetrics();
+  }
   return metricsCache.get(nodeId);
 }
 
@@ -246,19 +250,18 @@ export async function runMonitoringCycle() {
   isPollingRunning = true;
 
   try {
+    // 1. Always record local host metrics
+    metricsCache.set('__host__', getLocalHostMetrics());
+
     const nodesStmt = db.prepare('SELECT id, name, host, port, username, auth_type, encrypted_credential, iv_tag FROM nodes');
     const nodes = nodesStmt.all() as unknown as RawNodeRecord[];
 
-    if (nodes.length === 0) {
-      isPollingRunning = false;
-      return;
-    }
-
-    // Execute non-blocking parallel polling for each node
-    const results = await Promise.all(nodes.map((node) => pollNode(node)));
-
-    for (const metric of results) {
-      metricsCache.set(metric.nodeId, metric);
+    if (nodes.length > 0) {
+      // Execute non-blocking parallel polling for each node
+      const results = await Promise.all(nodes.map((node) => pollNode(node)));
+      for (const metric of results) {
+        metricsCache.set(metric.nodeId, metric);
+      }
     }
 
     // Broadcast updated metrics to all active WebSocket clients

@@ -38,7 +38,21 @@ nodesRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
     };
   });
 
-  res.json(result);
+  const hostNode = {
+    id: '__host__',
+    name: 'Home Server (Host)',
+    group_name: 'Local Host',
+    host: 'localhost',
+    port: 0,
+    username: process.env.USER || 'local',
+    auth_type: 'password',
+    is_host: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    metrics: getNodeCachedMetrics('__host__'),
+  };
+
+  res.json([hostNode, ...result]);
 });
 
 // POST /api/nodes/test - Test connection before creating/updating node

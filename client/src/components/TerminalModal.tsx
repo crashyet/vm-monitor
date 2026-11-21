@@ -3,7 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
-import { Maximize2, Minimize2, X, RefreshCw, Terminal as TerminalIcon } from 'lucide-react';
+import { Maximize2, Minimize2, X, RefreshCw, Terminal as TerminalIcon, RotateCcw, Zap } from 'lucide-react';
 import { NodeItem } from '../types/index.ts';
 
 interface TerminalModalProps {
@@ -19,6 +19,15 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({ node, onClose }) =
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
+
+  const handleResetSession = () => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'reset_session' }));
+    }
+    setTimeout(() => {
+      connectTerminal();
+    }, 300);
+  };
 
   const connectTerminal = () => {
     if (!terminalRef.current) return;
@@ -185,9 +194,26 @@ export const TerminalModal: React.FC<TerminalModalProps> = ({ node, onClose }) =
             >
               {connectionStatus.toUpperCase()}
             </span>
+
+            {/* Persistent Keepalive Badge */}
+            <span
+              title="Session stays alive in background for 30 mins even if tab closes"
+              className="hidden sm:inline-flex items-center space-x-1 text-[10px] px-2 py-0.5 rounded-full bg-[#1b2230] text-[#7eb3ff] border border-[#2c3a52]"
+            >
+              <Zap className="w-2.5 h-2.5 text-amber-400" />
+              <span>Persistent</span>
+            </span>
           </div>
 
           <div className="flex items-center space-x-1 text-[#838f9e]">
+            <button
+              onClick={handleResetSession}
+              title="Reset Terminal Session (Kill process and start fresh shell)"
+              className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded flex items-center space-x-1 text-[11px] px-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Reset</span>
+            </button>
             <button
               onClick={connectTerminal}
               title="Reconnect Session"

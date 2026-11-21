@@ -34,33 +34,93 @@ export interface NodeMetrics {
 }
 
 /**
- * Checks if ~/.ssh/config specifies a ProxyCommand (e.g. cloudflared access ssh)
- * or if host is a Tailscale IP (100.x.x.x), and spawns it as a Duplex stream.
+ * Creates a Duplex stream from a spawned child process (e.g. cloudflared or tailscale).
+ * Captures stderr so failures have informative error messages.
+ */
+function createProcessStream(cmd: string): { stream: Duplex; childProcess: any } {
+  const envPath = `${process.env.PATH || ''}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${process.env.HOME || ''}/.local/bin`;
+  const cp = spawn(cmd, { shell: true, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: envPath } });
+  const stream = Duplex.from({ readable: cp.stdout, writable: cp.stdin });
+  let stderrBuf = '';
+
+  cp.stderr?.on('data', (d) => {
+    stderrBuf += d.toString();
+  });
+
+  cp.on('error', (err) => {
+    stream.destroy(new Error(`Proxy process error (${cmd}): ${err.message}`));
+  });
+
+  cp.on('exit', (code) => {
+    if (code !== 0 && code !== null) {
+      const detail = stderrBuf.trim() || `exit code ${code}`;
+      stream.destroy(new Error(`Proxy command failed: ${detail}`));
+    }
+  });
+
+  stream.on('error', () => {});
+  return { stream, childProcess: cp };
+}
+
+/**
+ * Checks if ~/.ssh/config specifies a ProxyCommand (e.g. cloudflared access ssh),
+ * or auto-detects Cloudflare Tunnel domains, or Tailscale IPs (100.x.x.x),
+ * and spawns it as a Duplex stream.
  */
 function resolveProxyStream(host: string, port: number): { stream?: Duplex; childProcess?: any } {
+  const envPath = `${process.env.PATH || ''}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${process.env.HOME || ''}/.local/bin`;
+  
+  // 1. Try standard ssh -G lookup
   try {
-    const output = execSync(`ssh -G "${host}" 2>/dev/null`, { encoding: 'utf8', timeout: 2500 });
+    const output = execSync(`ssh -G "${host}" 2>/dev/null`, {
+      encoding: 'utf8',
+      timeout: 2500,
+      env: { ...process.env, PATH: envPath },
+    });
     const match = output.match(/^proxycommand\s+(.+)$/im);
     if (match && match[1] && match[1].trim() !== 'none') {
       const rawCmd = match[1].trim();
       const cmd = rawCmd.replace(/%h/g, host).replace(/%p/g, String(port));
-      const cp = spawn(cmd, { shell: true, stdio: ['pipe', 'pipe', 'ignore'] });
-      const stream = Duplex.from({ readable: cp.stdout, writable: cp.stdin });
-      stream.on('error', () => {});
-      return { stream, childProcess: cp };
+      return createProcessStream(cmd);
     }
-  } catch (_) {
-    // Ignore error and fall back
+  } catch (_) {}
+
+  // 1b. If running under systemd/root, also check if /home/adhit/.ssh/config exists
+  try {
+    const output = execSync(`ssh -F /home/adhit/.ssh/config -G "${host}" 2>/dev/null`, {
+      encoding: 'utf8',
+      timeout: 2500,
+      env: { ...process.env, PATH: envPath },
+    });
+    const match = output.match(/^proxycommand\s+(.+)$/im);
+    if (match && match[1] && match[1].trim() !== 'none') {
+      const rawCmd = match[1].trim();
+      const cmd = rawCmd.replace(/%h/g, host).replace(/%p/g, String(port));
+      return createProcessStream(cmd);
+    }
+  } catch (_) {}
+
+  // 2. Auto-detect Cloudflare Tunnel domains (e.g. *.crashyet.tech, ssh-*, *.trycloudflare.com)
+  const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(host) || host.includes(':');
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+
+  if (!isIp && !isLocal) {
+    const isCloudflareTunnel =
+      host.includes('crashyet.tech') ||
+      host.startsWith('ssh-') ||
+      host.includes('trycloudflare.com') ||
+      host.includes('cfargot.net') ||
+      host.includes('cloudflare');
+
+    if (isCloudflareTunnel) {
+      // Auto-route through cloudflared access ssh
+      return createProcessStream(`cloudflared access ssh --hostname ${host}`);
+    }
   }
 
-  // If host is a Tailscale IP (100.64.0.0/10), use tailscale nc if available
+  // 3. If host is a Tailscale IP (100.64.0.0/10), use tailscale nc
   if (host.startsWith('100.')) {
-    try {
-      const cp = spawn('tailscale', ['nc', host, String(port)], { stdio: ['pipe', 'pipe', 'ignore'] });
-      const stream = Duplex.from({ readable: cp.stdout, writable: cp.stdin });
-      stream.on('error', () => {});
-      return { stream, childProcess: cp };
-    } catch (_) {}
+    return createProcessStream(`tailscale nc ${host} ${port}`);
   }
 
   return {};
@@ -185,6 +245,9 @@ export async function testSSHConnection(
           isResolved = true;
           cleanup();
           let msg = err.message || 'SSH connection error';
+          if (!msg || msg.trim() === '') {
+            msg = 'Connection error (socket closed or host unreachable)';
+          }
           if (msg.includes('All configured authentication methods failed')) {
             msg = 'Authentication failed. Please verify SSH username and password or private key.';
           }
@@ -316,7 +379,8 @@ export function spawnSSHShell(
       })
       .on('error', (err) => {
         if (proxyProcess) proxyProcess.kill();
-        reject(err);
+        const msg = err.message || (err as any).level || 'Connection failed or socket reset';
+        reject(new Error(msg));
       })
       .connect(sshConfig);
   });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Server, Activity, Plus, Terminal, LogOut, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Server, Activity, Plus, Terminal, LogOut, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
 import { UserItem } from '../types/index.ts';
 
 interface NavbarProps {
@@ -7,6 +7,7 @@ interface NavbarProps {
   onLogout: () => void;
   onAddNode: () => void;
   onOpenSnippets: () => void;
+  onOpenHostShell: () => void;
   onRefresh: () => void;
   totalNodes: number;
   onlineNodes: number;
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onAddNode,
   onOpenSnippets,
+  onOpenHostShell,
   onRefresh,
   totalNodes,
   onlineNodes,
@@ -60,6 +62,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           className="p-2 text-[#8e98a8] hover:text-white hover:bg-[#1f242d] rounded transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#ff7a1a]' : ''}`} />
+        </button>
+
+        <button
+          onClick={onOpenHostShell}
+          title="Open Home Server Terminal"
+          className="flex items-center space-x-1.5 text-xs font-semibold px-3 py-1.5 bg-[#14232c] hover:bg-[#1a2f3a] text-cyan-300 hover:text-white rounded border border-cyan-800/50 shadow-sm transition-colors"
+        >
+          <Zap className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Host Shell</span>
         </button>
 
         <button

@@ -229,6 +229,20 @@ export const App: React.FC = () => {
           setShowSnippetsModal(true);
         }}
         onRefresh={loadNodes}
+        onOpenHostShell={() => {
+          setActiveTerminalNode({
+            id: '__host__',
+            name: 'Home Server (Host)',
+            group_name: 'Local Host',
+            host: 'localhost',
+            port: 0,
+            username: 'host',
+            auth_type: 'password',
+            is_host: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }}
         totalNodes={nodes.length}
         onlineNodes={onlineNodesCount}
         isRefreshing={isRefreshing}
