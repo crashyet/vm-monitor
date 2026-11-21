@@ -1,0 +1,16 @@
+services:
+  nexus-ssh:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-ssh
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - JWT_SECRET=change-this-to-a-secure-random-jwt-secret-key-32chars
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data

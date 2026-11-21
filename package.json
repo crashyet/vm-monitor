@@ -1,0 +1,16 @@
+{
+  "name": "nexus-ssh",
+  "version": "1.0.0",
+  "description": "Centralized Agentless SSH VM Control Panel (NexusSSH / VMDash)",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "start": "node server/dist/index.js",
+    "test": "node server/test_integration.mjs"
+  },
+  "keywords": ["ssh", "vm-monitor", "proxmox-alternative", "xterm", "agentless"],
+  "author": "",
+  "license": "MIT"
+}
